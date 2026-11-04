@@ -53,7 +53,10 @@ def _send_to_chat(token: str, chat_id: str, messages: list[str]) -> bool:
         try:
             resp = requests.post(
                 url,
-                json={"chat_id": chat_id, "text": text, "parse_mode": "HTML"},
+                json={
+                    "chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                    "link_preview_options": {"is_disabled": True},
+                },
                 timeout=_TIMEOUT,
             )
             resp.raise_for_status()

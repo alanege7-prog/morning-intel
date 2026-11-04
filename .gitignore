@@ -19,6 +19,9 @@ env/
 # Data files (runtime generated, not source)
 data/raw_content.json
 data/run_log.json
+data/raw_weekly_content.json
+data/last_response.txt
+data/last_brief.json
 
 # OS
 .DS_Store
