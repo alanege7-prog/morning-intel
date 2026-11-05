@@ -10,8 +10,9 @@ from analyzer.weekly_analyzer import analyze_weekly
 from formatter.weekly_formatter import format_weekly
 from delivery.telegram_delivery import deliver
 from logger.run_logger import log_run
+import config
 
-RAW_CONTENT_PATH = Path(__file__).parent / "data" / "raw_weekly_content.json"
+RAW_CONTENT_PATH = config.DATA_DIR / "raw_weekly_content.json"
 
 
 def setup_logging() -> None:
@@ -23,7 +24,7 @@ def setup_logging() -> None:
     )
 
 
-def main() -> None:
+def main() -> dict:
     setup_logging()
     log = logging.getLogger(__name__)
     log.info("=== Morning Intel — Weekly Run Started ===")
@@ -69,6 +70,14 @@ def main() -> None:
         log_run("weekly", all_items, brief, delivery_results)
         log.info("=== Morning Intel — Weekly Run Complete ===")
 
+    delivered = bool(delivery_results) and all(delivery_results.values())
+    return {
+        "status": "success" if delivered else "failed",
+        "items": len(all_items),
+        "tokens": (brief or {}).get("_tokens_used", 0),
+    }
+
 
 if __name__ == "__main__":
+    config.load_secrets()
     main()

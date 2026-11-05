@@ -3,9 +3,6 @@ import os
 import time
 
 import requests
-from dotenv import load_dotenv
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 

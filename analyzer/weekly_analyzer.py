@@ -6,17 +6,14 @@ import re
 from pathlib import Path
 
 import anthropic
-from dotenv import load_dotenv
-
-load_dotenv()
+import config
 
 logger = logging.getLogger(__name__)
 
 PROMPT_PATH = Path(__file__).parent.parent / "prompts" / "weekly_prompt.txt"
 MODEL = "claude-sonnet-4-6"
 MAX_TOKENS = 8000            # weekly JSON brief needs room; 2500 cut it off mid-JSON
-RAW_RESPONSE_PATH = Path(__file__).parent.parent / "data" / "last_response.txt"
-LAST_BRIEF_PATH = Path(__file__).parent.parent / "data" / "last_brief.json"  # TODO on AWS: move to S3
+RAW_RESPONSE_PATH = config.DATA_DIR / "last_response.txt"
 
 # Input limits: keep the request small, fast and cheap.
 MAX_ITEMS_PER_SOURCE = 8      # top N newest items per source
@@ -172,17 +169,11 @@ def _validate_links(brief: dict, allowed: set[str]) -> None:
 
 
 def _load_last_prediction() -> str:
-    try:
-        return json.loads(LAST_BRIEF_PATH.read_text(encoding="utf-8")).get("prediction", "")
-    except (FileNotFoundError, json.JSONDecodeError):
-        return ""
+    return config.read_state().get("prediction", "")
 
 
 def _save_brief(brief: dict) -> None:
-    try:
-        LAST_BRIEF_PATH.write_text(json.dumps(brief, indent=2), encoding="utf-8")
-    except OSError as exc:
-        logger.warning("Could not save brief for next week's review: %s", exc)
+    config.write_state(brief)
 
 
 def _extract_json(text: str) -> dict:

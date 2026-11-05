@@ -3,9 +3,11 @@ import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
+import config
+
 logger = logging.getLogger(__name__)
 
-LOG_PATH = Path(__file__).parent.parent / "data" / "run_log.json"
+LOG_PATH = config.DATA_DIR / "run_log.json"
 RETENTION_DAYS = 30
 
 
