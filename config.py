@@ -24,6 +24,9 @@ REQUIRED_KEYS = ("ANTHROPIC_API_KEY", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_IDS")
 def load_secrets() -> None:
     """Put API keys into the environment for the rest of the code.
     Secret values are never logged."""
+    if ON_LAMBDA and not SECRET_ID:
+        # Fail loudly: on Lambda there is no .env to fall back to.
+        raise RuntimeError("SECRET_ID environment variable is not set on the Lambda function")
     if SECRET_ID:
         import boto3  # preinstalled on Lambda
         resp = boto3.client("secretsmanager").get_secret_value(SecretId=SECRET_ID)
