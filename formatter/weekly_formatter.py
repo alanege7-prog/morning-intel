@@ -48,7 +48,9 @@ def _build_message(brief: dict) -> str:
         if item.get("what"):
             block.append(_e(item["what"]))
         if item.get("for_you"):
-            block.append(f"<b>For you:</b> {_e(item['for_you'])}")
+            label = {"career": "For your career", "business": "For your business"}.get(
+                (item.get("lens") or "").lower(), "For you")
+            block.append(f"<b>{label}:</b> {_e(item['for_you'])}")
         if item.get("action"):
             block.append(f"<b>Do:</b> {_e(item['action'])}")
         block.append(_source_line(item, with_confidence=True))

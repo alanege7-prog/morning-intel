@@ -102,6 +102,9 @@ def analyze_weekly(items: list[dict]) -> dict | None:
         brief = _extract_json(raw)
         _validate_links(brief, {i.get("link", "") for i in selected if i.get("link")})
         _enforce_confidence(brief, {i["link"]: i.get("source_name", "") for i in selected if i.get("link")})
+        lenses = {(sig.get("lens") or "").lower() for sig in brief.get("signals", [])}
+        if not {"career", "business"} <= lenses:
+            logger.warning("Brief is unbalanced: signal lenses were %s", sorted(lenses))
         brief["seen_undated_links"] = sorted(
             {i["link"] for i in items if i.get("link") and not i.get("published")}
         )
