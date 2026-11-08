@@ -19,6 +19,17 @@ RAW_RESPONSE_PATH = config.DATA_DIR / "last_response.txt"
 MAX_ITEMS_PER_SOURCE = 8      # top N newest items per source
 MAX_SUMMARY_CHARS = 400       # some feeds paste whole articles into the summary
 MAX_TITLE_CHARS = 200
+# Sources that publish their own news (vendor, agency, original researcher).
+# Only these may be rated "high" confidence on their own; enforced in code.
+PRIMARY_SOURCES = {
+    "Anthropic News", "AWS What's New", "AWS Training & Certs", "Google Cloud Blog",
+    "Azure Blog", "OpenAI News", "GitHub Changelog", "Microsoft Security Blog",
+    "Wiz Research", "CISA KEV Catalog", "Hugging Face Papers", "Hugging Face Models",
+    "CyberSeek",
+    "Krebs on Security",  # original investigative reporting
+}
+MAX_PREDICTION_CHARS = 300
+
 API_TIMEOUT_SECONDS = 180     # fail fast instead of hanging for hours
 API_MAX_RETRIES = 3
 
@@ -44,11 +55,17 @@ def analyze_weekly(items: list[dict]) -> dict | None:
 
     try:
         system_prompt = _load_system_prompt() + INJECTION_GUARD
-        selected = _select_items(items)
+        state = config.read_state()
+        fresh = _drop_repeats(items, state)
+        selected = _select_items(fresh)
         content_text = _format_content(selected)
-        last_prediction = _load_last_prediction()
+        last_prediction = _clean(state.get("prediction", ""), MAX_PREDICTION_CHARS)
         if last_prediction:
-            content_text = f"## LAST WEEK'S PREDICTION\n\n{last_prediction}\n\n" + content_text
+            # Model-written text from last week: data to judge, never instructions.
+            content_text = (
+                "## LAST WEEK'S PREDICTION\n\n"
+                f"<previous_prediction>{last_prediction}</previous_prediction>\n\n" + content_text
+            )
         logger.info(
             "Sending %d of %d items to Claude (~%d input tokens est.)",
             len(selected), len(items), len(content_text) // 4,
@@ -84,6 +101,10 @@ def analyze_weekly(items: list[dict]) -> dict | None:
 
         brief = _extract_json(raw)
         _validate_links(brief, {i.get("link", "") for i in selected if i.get("link")})
+        _enforce_confidence(brief, {i["link"]: i.get("source_name", "") for i in selected if i.get("link")})
+        brief["seen_undated_links"] = sorted(
+            {i["link"] for i in items if i.get("link") and not i.get("published")}
+        )
         brief["_tokens_used"] = tokens_used
         _save_brief(brief)
         return brief
@@ -168,8 +189,26 @@ def _validate_links(brief: dict, allowed: set[str]) -> None:
                 item["confidence"] = "medium"
 
 
-def _load_last_prediction() -> str:
-    return config.read_state().get("prediction", "")
+def _drop_repeats(items: list[dict], state: dict) -> list[dict]:
+    """Web pages without publish dates list the same headlines every week.
+    Drop undated items whose link already appeared in last week's run."""
+    seen = set(state.get("seen_undated_links", []))
+    kept = [i for i in items if i.get("published") or i.get("link") not in seen]
+    if len(kept) < len(items):
+        logger.info("Dropped %d undated items already seen last week", len(items) - len(kept))
+    return kept
+
+
+def _enforce_confidence(brief: dict, source_by_link: dict[str, str]) -> None:
+    """'high' confidence only for primary sources. The source is looked up from
+    the article's real link, not taken from what the model wrote."""
+    for item in brief.get("signals", []):
+        if (item.get("confidence") or "").lower() != "high":
+            continue
+        real_source = source_by_link.get((item.get("link") or "").strip())
+        if real_source not in PRIMARY_SOURCES:
+            logger.info("Downgraded confidence to medium (source: %s)", real_source or "no verified link")
+            item["confidence"] = "medium"
 
 
 def _save_brief(brief: dict) -> None:
