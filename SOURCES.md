@@ -56,7 +56,6 @@ This is the single source of truth for all sources the agent fetches. Only Scout
 
 | # | Source | URL | Type | Cost | Priority | Signal |
 |---|--------|-----|------|------|----------|--------|
-| 19 | LinkedIn Job Trends | linkedin.com/jobs | Web | Mixed | 🔴 P1 | Rising job titles = market gaps |
 | 20 | CyberSeek | cyberseek.org | Web | Free | 🟡 P2 | Cyber role demand, workforce gaps |
 | 21 | AWS Training & Certs | aws.amazon.com/training | Web | Free | 🟡 P2 | Certification demand, new skill proxies |
 
@@ -68,7 +67,6 @@ This is the single source of truth for all sources the agent fetches. Only Scout
 |---|--------|-----|------|------|----------|--------|
 | 22 | GitHub Trending | github.com/trending | Web | Free | 🔴 P1 | What developers are building — early tool signals |
 | 23 | Hacker News | news.ycombinator.com | RSS | Free | 🔴 P1 | Show HN = early products, Ask HN = unmet needs |
-| 24 | Product Hunt | producthunt.com | RSS | Free | 🟡 P2 | Daily AI/security launches, traction signals |
 | 25 | Hugging Face Models | huggingface.co/models | Web | Free | 🟡 P2 | Open model releases, community adoption |
 | 26 | Hugging Face Papers | https://huggingface.co/api/daily_papers | API | Free | 🟡 P2 | Research-to-product transition signals |
 
@@ -88,7 +86,7 @@ This is the single source of truth for all sources the agent fetches. Only Scout
 | Frequency | Sources |
 |-----------|---------|
 | Daily | 1,2,3,4,5,6,12,22,23,27,28 |
-| Weekly | 7,8,9,10,11,13,14,15,16,17,18,19,20,21,24,25,26 |
+| Weekly | 7,8,9,10,11,13,14,15,16,17,18,20,21,25,26 |
 
 ---
 

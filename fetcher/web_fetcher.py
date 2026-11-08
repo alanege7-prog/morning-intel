@@ -1,14 +1,15 @@
+import json
 import logging
 import urllib.robotparser
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
+
+from fetcher.net_safety import safe_get
 
 logger = logging.getLogger(__name__)
 
 _HEADERS = {"User-Agent": "MorningIntelAgent/1.0 (Web Scraper; respectful bot)"}
-_TIMEOUT = 15
 _MAX_HEADLINES = 10
 
 _robots_cache: dict[str, urllib.robotparser.RobotFileParser] = {}
@@ -33,9 +34,7 @@ def fetch_web_sources(sources: list[dict]) -> list[dict]:
 
 
 def _fetch_api_source(source: dict) -> list[dict]:
-    resp = requests.get(source["url"], headers=_HEADERS, timeout=_TIMEOUT)
-    resp.raise_for_status()
-    data = resp.json()
+    data = json.loads(safe_get(source["url"], headers=_HEADERS).content)
 
     items = []
     for entry in data[:_MAX_HEADLINES]:
@@ -71,8 +70,7 @@ def _fetch_page(source: dict) -> list[dict]:
         logger.warning("Robots.txt disallows fetching %s — skipping", url)
         return []
 
-    resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
-    resp.raise_for_status()
+    resp = safe_get(url, headers=_HEADERS)
 
     soup = BeautifulSoup(resp.text, "lxml")
     headlines = _extract_headlines(soup, url)
@@ -140,7 +138,7 @@ def _is_allowed(url: str) -> bool:
         rp = urllib.robotparser.RobotFileParser()
         rp.set_url(robots_url)
         try:
-            resp = requests.get(robots_url, headers=_HEADERS, timeout=5)
+            resp = safe_get(robots_url, headers=_HEADERS)
             rp.parse(resp.text.splitlines())
         except Exception:
             rp.allow_all = True

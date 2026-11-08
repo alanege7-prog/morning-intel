@@ -3,13 +3,13 @@ import time
 from datetime import datetime, timezone, timedelta
 
 import feedparser
-import requests
 from bs4 import BeautifulSoup
+
+from fetcher.net_safety import BlockedURLError, safe_get
 
 logger = logging.getLogger(__name__)
 
 _HEADERS = {"User-Agent": "MorningIntelAgent/1.0 (RSS Reader)"}
-_TIMEOUT = 15
 
 
 def fetch_rss_sources(sources: list[dict], window_hours: int = 25) -> list[dict]:
@@ -26,14 +26,19 @@ def fetch_rss_sources(sources: list[dict], window_hours: int = 25) -> list[dict]
 
 def _fetch_feed(source: dict, window_hours: int = 25) -> list[dict]:
     url = source["url"]
-    feed = feedparser.parse(url, request_headers=_HEADERS)
+    resp = safe_get(url, headers=_HEADERS)
+    feed = feedparser.parse(resp.content)
 
-    # If direct parse yielded nothing, attempt autodiscovery
+    # If the URL is a web page rather than a feed, look for a feed link on it.
+    # The discovered URL is untrusted page content, so it goes through safe_get too.
     if not feed.entries:
-        discovered = _autodiscover_feed_url(url)
+        discovered = _autodiscover_feed_url(resp.text, resp.url)
         if discovered:
-            logger.info("Autodiscovered feed URL for %s: %s", source["name"], discovered)
-            feed = feedparser.parse(discovered, request_headers=_HEADERS)
+            try:
+                feed = feedparser.parse(safe_get(discovered, headers=_HEADERS).content)
+                logger.info("Autodiscovered feed URL for %s: %s", source["name"], discovered)
+            except BlockedURLError as exc:
+                logger.warning("Blocked autodiscovered feed for %s: %s", source["name"], exc)
 
     if not feed.entries:
         raise ValueError(f"No entries found (bozo={feed.get('bozo')}, exc={feed.get('bozo_exception')})")
@@ -63,21 +68,17 @@ def _fetch_feed(source: dict, window_hours: int = 25) -> list[dict]:
     return entries
 
 
-def _autodiscover_feed_url(url: str) -> str | None:
+def _autodiscover_feed_url(html: str, base_url: str) -> str | None:
+    """Return the first RSS/Atom link on an already-downloaded page (no network call)."""
+    from urllib.parse import urljoin
     try:
-        resp = requests.get(url, headers=_HEADERS, timeout=_TIMEOUT)
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "lxml")
+        soup = BeautifulSoup(html, "lxml")
         for link in soup.find_all("link", type=lambda t: t and ("rss" in t or "atom" in t)):
             href = link.get("href", "").strip()
             if href:
-                if href.startswith("http"):
-                    return href
-                # relative URL — make it absolute
-                from urllib.parse import urljoin
-                return urljoin(url, href)
+                return urljoin(base_url, href)
     except Exception as exc:
-        logger.debug("Autodiscovery failed for %s: %s", url, exc)
+        logger.debug("Autodiscovery failed for %s: %s", base_url, exc)
     return None
 
 
